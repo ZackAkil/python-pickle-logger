@@ -33,7 +33,9 @@ def pickle_log(func):
 
         # save all of the function input data to pickle file
         with open(pickle_file_name, "wb") as f:
-          pickle.dump({'args':args, 'kwargs':kwargs}, f)
+          pickle.dump({'args':args, 
+                       'kwargs':kwargs, 
+                       'function_name':func.__name__}, f)
 
         # calculate how long the pickling took (just in case it's too much overhead)
         end_time = datetime.datetime.now()
@@ -63,11 +65,57 @@ def reheat_pickle_log(pickle_capture_file_name, function):
 
   # get data from pickled log
   with open(pickle_capture_file_name, "rb") as f:
-    function_input_data = pickle.load(f)
+    pickle_data = pickle.load(f)
 
-  args = function_input_data.get('args')
-  kwargs = function_input_data.get('kwargs')
+  args = pickle_data.get('args')
+  kwargs = pickle_data.get('kwargs')
   
   # run function without Pickle Logging it again
   function_without_decorator = function.__wrapped__
-  function_without_decorator(*args, **kwargs)
+  return function_without_decorator(*args, **kwargs)
+
+
+import json
+
+def generate_test(pickle_capture_file_name, function):
+  """Generates a test code for a pickled function log.
+  Only good when the outputs are simple, otherwise good for template test.
+
+  Args:
+    pickle_capture_file_name: The name of the pickled function log file.
+    function: The function whose log should be used to generate the test code.
+  Returns:
+    None.
+  """
+
+  print('🧪 Generating test code 🥒 ')
+
+  # get data from pickled log
+  with open(pickle_capture_file_name, "rb") as f:
+    pickle_data = pickle.load(f)
+
+  function_name = pickle_data.get('function_name')
+  function_output = reheat_pickle_log(pickle_capture_file_name, function)
+  # print out the code template
+  print('----generated test below----\n')
+  print(f'def test_{function_name}_{random_id(5)}():')
+  print(f'  pickle_capture_file_name = "{pickle_capture_file_name}"')
+  print(f'  function_output = reheat_pickle_log(pickle_capture_file_name, {function_name})')
+  print(f'  assert function_output == {json.dumps(function_output)}')
+
+
+import random 
+import string
+
+def random_id(n):
+  """Generates a random ID of length `n`.
+
+  Args:
+    n: The length of the random ID.
+
+  Returns:
+    A random ID of length `n`.
+  """
+  chars = string.ascii_uppercase + string.digits
+  return ''.join(random.SystemRandom().choice(chars) for _ in range(n))
+
